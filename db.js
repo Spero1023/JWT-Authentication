@@ -1,4 +1,6 @@
 const Sequelize = require("sequelize");
+const bcrypt = require("bcrypt");
+
 const { STRING } = Sequelize;
 const config = {
   logging: false,
@@ -12,9 +14,15 @@ const conn = new Sequelize(
   config
 );
 
+const SALT_ROUNDS = 10;
+
 const User = conn.define("user", {
   username: STRING,
   password: STRING,
+});
+
+User.beforeCreate(async (user) => {
+  user.password = await bcrypt.hash(user.password, SALT_ROUNDS);
 });
 
 User.byToken = async (token) => {
@@ -37,10 +45,10 @@ User.authenticate = async ({ username, password }) => {
   const user = await User.findOne({
     where: {
       username,
-      password,
+      //password
     },
   });
-  if (user) {
+  if (user && (await bcrypt.compare(password, user.password))) {
     return user.id;
   }
   const error = Error("bad credentials");
